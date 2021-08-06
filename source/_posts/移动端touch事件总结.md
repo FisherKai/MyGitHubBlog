@@ -8,7 +8,7 @@ tags:
 2. touch事件的touches保存了当前触点的个数及其位置信息等（值为数组）
 3. touch事件的穿透问题
    - 场景：当有蒙层的时候，蒙层为渲染节点的最外层的兄弟节点，触发touchstart事件后，由于移动端的300ms的延迟，会导致300ms之后触发button的onclick事件、ab标签的跳转的、input的focus事件等
-    ![示例](https://github.com/FisherKai/MyGitHubBlog/blob/main/source/_posts/img/touch.png)
+    ![示例](http://github.com/FisherKai/MyGitHubBlog/blob/main/source/_posts/img/touch.png)
    - 解决办法
 
      1. 封装tap事件，阻止掉事件的默认行为 e.preventDefault()
