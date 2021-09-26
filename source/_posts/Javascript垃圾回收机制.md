@@ -8,11 +8,16 @@ tags:
 内存泄漏！
 所以什么是内存泄漏呢？
 我们知道程序运行是需要内存的，操作系统或者运行时（runtime）就必须要提供内存。对于持续运行的程序或者服务来说，必须要及时释放不再用的内存。否则，内存占用越来越高。就会导致系统性能（卡顿等），程序崩溃等。
+
+![](http://cdn.nlark.com/yuque/0/2020/png/2397683/1606204839600-8eb3ec28-3bac-4359-84b0-84472757ba79.png)
+
 而不在使用的内存没有得到及时的释放，就叫做内存泄漏。
 有些语言（比如 C 语言）必须手动释放内存，程序员负责内存管理。
-char * buffer;
-buffer = (char*) malloc(42);
-free(buffer);
+``` 
+  char * buffer;
+  buffer = (char*) malloc(42);
+  free(buffer); 
+```
 上面是 C 语言代码，malloc方法用来申请内存，使用完毕之后，必须自己用free方法释放内存。
 这很麻烦，所以大多数语言提供自动内存管理，减轻程序员的负担，这被称为"垃圾回收机制"（garbage collector）。
 垃圾回收机制
@@ -31,6 +36,7 @@ free(buffer);
 4、引用为0，回收内存；
 缺点：
 最主要的就是循环引用的问题
+```
 eg：
 function refProblem () {
     let a = new Object();
@@ -38,8 +44,12 @@ function refProblem () {
     a.c = b;
     b.c = a;  //互相引用
 }
+```
 Nodejs V8回收机制
 首先先来了解V8的内存结构
+
+![](http://cdn.nlark.com/yuque/0/2020/png/2397683/1606217882739-856828ed-750d-4d7b-aaa9-c9c4f79463ba.png)
+
 • 新生代（New Space/Young Generation）： 大多数新生对象被分配到这，分为两块空间，整体占据小块空间，垃圾回收的频率较高，采用的回收算法为 Scavenge 算法
 • 老生代（Old Space/Old Generation）：大多数在新生区存活一段时间后的对象会转移至此，采用的回收算法为标记清除 & 整理（Mark-Sweep & Mark-Compact，Major GC）算法，内部再细分为两个空间
 • 指针空间（Old pointer space）: 存储的对象含有指向其他对象的指针
@@ -48,8 +58,8 @@ Nodejs V8回收机制
 • 代码空间（Code Space）: 代码对象，用于存放代码段，是唯一拥有执行权限的内存空间，需要注意的是如果代码对象太大而被移入大对象空间，这个代码对象在大对象空间内也是拥有执行权限的，但不能因此说大对象空间也有执行权限
 • Cell空间、属性空间、Map空间 （Cell ,Property,Map Space）： 这些区域存放Cell、属性Cell和Map，每个空间因为都是存放相同大小的元素，因此内存结构很简单。
 Scavenge 算法
-Scavenge 算法是新生代空间中的主要算法，该算法由 C.J. Cheney 在 1970 年在论文 A nonrecursive list compacting algorithm 提出。
-Scavenge 主要采用了 Cheney算法，Cheney算法新生代空间的堆内存分为2块同样大小的空间，称为 Semi space，处于使用状态的成为 From空间 ，闲置的称为 To 空间。垃圾回收过程如下：
+Scavenge 算法是新生代空间中的主要算法，该算法由 C.J. Cheney 在 1970 年在论文 ![A nonrecursive list compacting algorithm](http://dl.acm.org/doi/10.1145/362790.362798) 提出。
+Scavenge 主要采用了 ![Cheney](http://en.wikipedia.org/wiki/Cheney%27s_algorithm)算法，Cheney算法新生代空间的堆内存分为2块同样大小的空间，称为 Semi space，处于使用状态的成为 From空间 ，闲置的称为 To 空间。垃圾回收过程如下：
 • 检查From空间，如果From空间被分配满了，则执行Scavenge算法进行垃圾回收
 • 如果未分配满，则检查From空间的是否有存活对象，如果无存活对象，则直接释放未存活对象的空间
 • 如果存活，将检查对象是否符合晋升条件，如果符合晋升条件，则移入老生代空间，否则将对象复制进To空间
@@ -57,46 +67,67 @@ Scavenge 主要采用了 Cheney算法，Cheney算法新生代空间的堆内存�
 晋升条件
 1. 经历过一次Scavenge 算法筛选；
 2. To空间内存使用超过25%；
+3. 
+![](http://cdn.nlark.com/yuque/0/2020/png/2397683/1606218271949-985a5433-6741-4954-b2ec-019770fd4a00.png?x-oss-process=image%2Fresize%2Cw_682)
+
 标记清除 & 整理（Mark-Sweep & Mark-Compact，Major GC）算法
 之前说过，标记清除策略会产生内存碎片，从而影响内存的使用，这里 标记整理算法（Mark-Compact）的出现就能很好的解决这个问题。标记整理算法是在 标记清除（Mark-Sweep ）的基础上演变而来的，整理算法会将活跃的对象往边界移动，完成移动后，再清除不活跃的对象。
+
+![](http://cdn.nlark.com/yuque/0/2020/png/2397683/1606218271765-a656f4c2-1f76-4acf-a0d7-f42f27c0784f.png?x-oss-process=image%2Fresize%2Cw_621)
+
 由于需要移动移动对象，所以在处理速度上，会慢于Mark-Sweep。
 全停顿（Stop The World ）
 为了避免应用逻辑与垃圾回收器看到的逻辑不一样，垃圾回收器在执行回收时会停止应用逻辑，执行完回收任务后，再继续执行应用逻辑。这种行为就是 全停顿，停顿的时间取决与不同引擎执行一次垃圾回收的时间。这种停顿对新生代空间的影响较小，但对老生代空间可能会造成停顿的现象。
 增量标记（Incremental Marking）
 为了解决全停顿的现象，2011年V8推出了增量标记。V8将标记过程分为一个个的子标记过程，同时让垃圾回收标记和JS应用逻辑交替进行，直至标记完成。
-那我们日常中如何监听内存使用情况
+
+![](http://cdn.nlark.com/yuque/0/2020/jpeg/2397683/1606218271864-2242755b-2d1d-46f0-b5d1-6fe9386437c0.jpeg?x-oss-process=image%2Fresize%2Cw_800)
+
+  那我们日常中如何监听内存使用情况
+
+![](http://cdn.nlark.com/yuque/0/2020/png/2397683/1606218539784-de2ccbb8-7adf-4237-a66b-b8ba117d0e2e.png)
+
 1、对于chrome浏览器（84.0.4147.105），F12打开开发者工具；
 2、在More Tools中找到Performance monitor；
 常见的内存泄漏场景
 1. 意外声明全局变量
+```
 function test() {      x = new Array(100000);
     }
      
 test();
 console.log(x);
+```
 未声明的对象会被绑定在全局对象上，就算不被使用了，也不会被回收，所以写代码的时候，一定要记得声明变量。
 2. 定时器
+```
 let name = 'Tom';
 setInterval(() => {
   console.log(name);
 }, 100);
+```
 定时器的回调通过闭包引用了外部变量，如果定时器不清除，name会一直占用着内存，所以用定时器的时候最好明白自己需要哪些变量，检查定时器内部的变量，另外如果不用定时器了，记得及时清除定时器。
 3. 闭包
+```
 let out = function() {
     let name = 'Tom';
     return function () {
       console.log(name);
     }
 }
+```
 由于闭包会常驻内存，在这个例子中，如果out一直存在，name就一直不会被清理，如果name值很大的时候，就会造成比较严重的内存泄漏。所以一定要慎重使用闭包。
 4. 事件监听
+```
 mounted() {
     window.addEventListener("resize", () => {
     });
 }
+```
 在页面初始化时绑定了事件监听，但是在页面离开的时候未清除事监听，就会导致内存泄漏。
 5. 缓存爆炸
 通过 Object/Map 的内存缓存可以极大地提升程序性能，但是很有可能未控制好缓存的大小和过期时间，导致失效的数据仍缓存在内存中，导致内存泄漏：
+```
 const cache = {};
  
 function setCache() {
@@ -104,6 +135,7 @@ function setCache() {
 }
  
 setInterval(setCache, 100);
+```
 上面这段代码中，会不断的设置缓存，但是没有释放缓存的代码，导致内存最终被撑爆。
 参考资料：
 阮一峰的《JavaScript 内存泄漏教程》
